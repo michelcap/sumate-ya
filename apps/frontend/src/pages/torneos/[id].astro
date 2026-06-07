@@ -1,0 +1,625 @@
+---
+/**
+ * /torneos/[id] - Detalle publico de torneo.
+ *
+ * Decision Context:
+ * - SSR: el detalle debe mostrar equipos, fixture y resultados con datos frescos desde
+ *   GraphQL. La pagina es publica y solo el CTA de inscripcion exige sesion.
+ * - La inscripcion queda en una isla React pequeña para reutilizar /api/graphql-auth y
+ *   el cookie HttpOnly sin exponer credenciales en el cliente.
+ */
+export const prerender = false;
+
+import {
+  CalendarDays,
+  CheckCircle,
+  Clock,
+  MapPin,
+  Shield,
+  Trophy,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import Layout from '../../layouts/Layout.astro';
+import Topbar from '../../components/shared/Topbar.astro';
+import { TournamentRegistrationForm } from '../../components/tournaments/TournamentRegistrationForm';
+import { LeaveTournamentButton } from '../../components/tournaments/LeaveTournamentButton';
+import { TournamentBracket } from '../../components/tournaments/TournamentBracket';
+import { GroupStandings } from '../../components/tournaments/GroupStandings';
+import { InviteTeamSection } from '../../components/tournaments/InviteTeamSection';
+import { GET_TOURNAMENT_DETAIL, type TournamentData, type TournamentFixtureMatch } from '../../graphql/operations/tournaments';
+import { readAccessToken } from '../../lib/auth';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const id = Astro.params.id ?? Astro.url.pathname.split('/').filter(Boolean).at(-1);
+if (!id || !UUID_REGEX.test(id)) {
+  return Astro.redirect('/torneos');
+}
+
+const user = Astro.locals.user;
+const isAuthenticated = !!user;
+const nombre = user?.displayName || user?.email;
+const accessToken = readAccessToken(Astro.cookies) ?? '';
+const backendUrl =
+  import.meta.env.PRIVATE_BACKEND_URL ||
+  (typeof process !== 'undefined' ? process.env.PRIVATE_BACKEND_URL : undefined) ||
+  'http://localhost:4000';
+
+let tournament: TournamentData | null = null;
+let fetchError: string | null = null;
+
+try {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${backendUrl}/graphql`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query: GET_TOURNAMENT_DETAIL, variables: { id } }),
+  });
+
+  const json = await response.json() as {
+    data?: { tournament: TournamentData | null };
+    errors?: Array<{ message: string }>;
+  };
+
+  if (json.errors?.length) fetchError = json.errors[0].message;
+  else tournament = json.data?.tournament ?? null;
+} catch {
+  fetchError = 'Error de red al cargar el torneo.';
+}
+
+const formatLabels = {
+  FIVE_VS_FIVE: '5v5',
+  SEVEN_VS_SEVEN: '7v7',
+  TEN_VS_TEN: '10v10',
+  ELEVEN_VS_ELEVEN: '11v11',
+};
+
+const statusLabels = {
+  REGISTRATION: 'Inscripcion abierta',
+  IN_PROGRESS: 'En juego',
+  COMPLETED: 'Finalizado',
+  CANCELLED: 'Cancelado',
+};
+
+function formatDate(value: string | null): string {
+  if (!value) return 'A confirmar';
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('es-UY', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return 'Horario a confirmar';
+  return new Date(value).toLocaleString('es-UY', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+function teamName(match: TournamentFixtureMatch, side: 'home' | 'away'): string {
+  const team = side === 'home' ? match.homeTeam : match.awayTeam;
+  if (team?.name) return team.name;
+  return 'Equipo por definir';
+}
+
+const registeredTeams = tournament ? Math.min(tournament.registeredTeamsCount, tournament.teamCount) : 0;
+const currentUserId = user?.id ?? null;
+const isOrganizer = !!currentUserId && tournament?.organizerId === currentUserId;
+const canRegister = Boolean(
+  tournament &&
+    tournament.status === 'REGISTRATION' &&
+    tournament.registeredTeamsCount < tournament.teamCount,
+);
+const progress = tournament?.teamCount ? Math.round((registeredTeams / tournament.teamCount) * 100) : 0;
+
+// Equipo del capitán ya inscripto en este torneo (para mostrar "Darse de baja")
+const captainEnrolledTeam = tournament?.teams.find(t => t.captainId === user?.id) ?? null;
+const hasOnlyTwoTeams = (tournament?.registeredTeamsCount ?? 0) <= 2;
+const fixtureByRound = new Map<number, TournamentFixtureMatch[]>();
+for (const match of tournament?.fixtureMatches ?? []) {
+  const matches = fixtureByRound.get(match.round) ?? [];
+  matches.push(match);
+  fixtureByRound.set(match.round, matches);
+}
+---
+
+<Layout title={tournament ? `${tournament.name} - Sumate Ya` : 'Torneo - Sumate Ya'}>
+  <div class="app-shell">
+    <Topbar user={user} />
+
+    <main class="page-content">
+      {(!tournament || fetchError) && (
+        <section class="not-found">
+          <p class="nf-title">{fetchError ? 'Error al cargar' : 'Torneo no encontrado'}</p>
+          <p class="nf-sub">{fetchError ?? 'Puede que el torneo ya no este disponible.'}</p>
+          <a href="/torneos" class="btn-back">Volver a torneos</a>
+        </section>
+      )}
+
+      {tournament && (
+        <div class="tournament-detail">
+          <div class="detail-top-bar">
+            <a href="/torneos" class="link-back">Volver a torneos</a>
+            {/* T5: botón de invitar equipos solo para el organizador */}
+            {isOrganizer && tournament.status === 'REGISTRATION' && (
+              <InviteTeamSection client:load tournamentId={tournament.id} />
+            )}
+          </div>
+
+          <section class="hero-panel">
+            <!-- Hero compacto: sin área vacía innecesaria -->
+            <div class="hero-main">
+              <div class="eyebrow"><Trophy size={14} strokeWidth={2} aria-hidden="true" /> TORNEO</div>
+              <h1>{tournament.name}</h1>
+              {tournament.description && (
+                <p class="hero-description">{tournament.description}</p>
+              )}
+              <div class="hero-meta">
+                <span><Shield size={14} aria-hidden="true" /> {formatLabels[tournament.format]}</span>
+                <span><MapPin size={14} aria-hidden="true" /> {tournament.club?.name ?? 'Club a confirmar'}</span>
+                <span><UserRound size={14} aria-hidden="true" /> {tournament.organizer?.displayName ?? 'Organizador'}</span>
+              </div>
+            </div>
+
+            <aside class="signup-panel" aria-label="Inscripcion del torneo">
+              <div class="status-pill">{statusLabels[tournament.status]}</div>
+              <div class="capacity-number">{registeredTeams}<span>/{tournament.teamCount}</span></div>
+              <p class="capacity-label">equipos inscriptos</p>
+              <div class="capacity-bar" aria-hidden="true"><span style={`width: ${progress}%`}></span></div>
+
+              {captainEnrolledTeam ? (
+                <!-- El capitán ya tiene su equipo inscripto: mostrar estado + botón de baja -->
+                <div class="enrolled-panel">
+                  <div class="enrolled-badge">
+                    <CheckCircle size={14} strokeWidth={2} aria-hidden="true" />
+                    Tu equipo está inscripto
+                  </div>
+                  <p class="enrolled-team-name">{captainEnrolledTeam.name}</p>
+
+                  {tournament.status === 'REGISTRATION' && (
+                    <div class="leave-wrap">
+                      <LeaveTournamentButton
+                        client:load
+                        tournamentId={tournament.id}
+                        teamId={captainEnrolledTeam.id}
+                        teamName={captainEnrolledTeam.name}
+                        tournamentName={tournament.name}
+                        hasOnlyTwoTeams={hasOnlyTwoTeams}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <TournamentRegistrationForm
+                  client:load
+                  tournamentId={tournament.id}
+                  tournamentName={tournament.name}
+                  tournamentStatus={tournament.status}
+                  isAuthenticated={isAuthenticated}
+                  canRegister={canRegister}
+                  playersPerTeam={tournament.playersPerTeam}
+                  currentUserId={user?.id ?? null}
+                  teams={tournament.teams}
+                />
+              )}
+            </aside>
+          </section>
+
+          <section class="info-grid" aria-label="Datos del torneo">
+            <div class="info-item">
+              <CalendarDays size={18} aria-hidden="true" />
+              <div><span>Fechas</span><strong>{formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}</strong></div>
+            </div>
+            <div class="info-item">
+              <Users size={18} aria-hidden="true" />
+              <div><span>Formato</span><strong>{tournament.playersPerTeam} jugadores por equipo</strong></div>
+            </div>
+            <div class="info-item">
+              <MapPin size={18} aria-hidden="true" />
+              <div><span>Club</span><strong>{tournament.club?.address ?? tournament.club?.zone ?? 'Ubicacion a confirmar'}</strong></div>
+            </div>
+          </section>
+
+          <section class="content-grid">
+            <div class="detail-section">
+              <div class="section-heading">
+                <h2>Equipos inscriptos</h2>
+                <span>{registeredTeams} de {tournament.teamCount}</span>
+              </div>
+
+              {tournament.teams.length === 0 ? (
+                <div class="empty-state">Todavia no hay equipos anotados.</div>
+              ) : (
+                <div class="teams-list">
+                  {tournament.teams.map((team) => (
+                    <article class="team-row">
+                      <div class="team-title">
+                        <div class="team-mark">{initials(team.name) || 'EQ'}</div>
+                        <div>
+                          <h3>{team.name}</h3>
+                          <p>Capitan: {team.captain?.displayName ?? 'Sin datos'}</p>
+                        </div>
+                      </div>
+                      <ul class="players-mini" aria-label={`Jugadores de ${team.name}`}>
+                        {team.players.map((player) => (
+                          <li>
+                            <span class="player-dot">{initials(player.displayName) || 'J'}</span>
+                            {player.displayName}
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* T1: mostrar tabla de grupos si es group_stage_elimination */}
+            {tournament.tournamentType === 'GROUP_STAGE_ELIMINATION' && (
+              <div class="detail-section">
+                <div class="section-heading">
+                  <h2>Tabla de Grupos</h2>
+                </div>
+                <GroupStandings
+                  client:visible
+                  matches={tournament.fixtureMatches}
+                  teams={tournament.teams}
+                  advancingPerGroup={tournament.advancingPerGroup}
+                />
+              </div>
+            )}
+
+            <div class="detail-section fixture-section">
+              <div class="section-heading">
+                <h2>
+                  {tournament.tournamentType === 'SINGLE_ELIMINATION' ? 'Bracket' :
+                   tournament.tournamentType === 'GROUP_STAGE_ELIMINATION' ? 'Fixture de Grupos' :
+                   'Fixture'}
+                </h2>
+                <span>{tournament.fixtureMatches.length} partidos</span>
+              </div>
+
+              {tournament.fixtureMatches.length === 0 ? (
+                <div class="empty-state">El fixture todavia no fue generado.</div>
+              ) : tournament.tournamentType === 'SINGLE_ELIMINATION' ? (
+                /* T1: bracket visual para eliminación directa */
+                <TournamentBracket
+                  client:visible
+                  matches={tournament.fixtureMatches}
+                />
+              ) : tournament.tournamentType === 'GROUP_STAGE_ELIMINATION' ? (
+                /* T1: primero grupos, luego bracket de eliminación */
+                <div>
+                  {/* Partidos de grupos por jornada */}
+                  <div class="rounds-list">
+                    {[...fixtureByRound.entries()]
+                      .filter(([, ms]) => ms.some(m => m.phase === 'GROUP_STAGE'))
+                      .map(([round, matches]) => (
+                        <section class="round-block">
+                          <h3>Jornada {round}</h3>
+                          <div class="matches-stack">
+                            {matches.filter(m => m.phase === 'GROUP_STAGE').map((match) => {
+                              const played = match.status === 'COMPLETED';
+                              return (
+                                <article class={`fixture-match ${played ? 'fixture-match--played' : ''} ${match.isPast ? 'fixture-match--past' : ''}`}>
+                                  {match.groupName && <span class="group-badge">Grupo {match.groupName}</span>}
+                                  <div class="fixture-time"><Clock size={14} aria-hidden="true" />{formatDateTime(match.scheduledAt)}</div>
+                                  <div class="fixture-line">
+                                    <span>{teamName(match, 'home')}</span>
+                                    <strong>{played && match.scoreHome !== null && match.scoreAway !== null ? `${match.scoreHome} - ${match.scoreAway}` : 'vs'}</strong>
+                                    <span>{teamName(match, 'away')}</span>
+                                  </div>
+                                  {played && <div class="played-mark"><CheckCircle size={13} aria-hidden="true" /> Jugado</div>}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
+                  </div>
+                  {/* Bracket de eliminación */}
+                  {tournament.fixtureMatches.some(m => m.phase && m.phase !== 'GROUP_STAGE') && (
+                    <div class="elim-bracket-section">
+                      <h3 class="elim-bracket-title">Fase de Eliminación</h3>
+                      <TournamentBracket client:visible matches={tournament.fixtureMatches} eliminationOnly={true} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Round robin: vista de jornadas original con T4 (isPast → fixture-match--past) */
+                <div class="rounds-list">
+                  {[...fixtureByRound.entries()].map(([round, matches]) => (
+                    <section class="round-block">
+                      <h3>Jornada {round}</h3>
+                      <div class="matches-stack">
+                        {matches.map((match) => {
+                          const played = match.status === 'COMPLETED';
+                          return (
+                            <article class={`fixture-match ${played ? 'fixture-match--played' : ''} ${match.isPast ? 'fixture-match--past' : ''}`}>
+                              <div class="fixture-time">
+                                <Clock size={14} aria-hidden="true" />
+                                {formatDateTime(match.scheduledAt)}
+                              </div>
+                              <div class="fixture-line">
+                                <span>{teamName(match, 'home')}</span>
+                                <strong>
+                                  {played && match.scoreHome !== null && match.scoreAway !== null
+                                    ? `${match.scoreHome} - ${match.scoreAway}`
+                                    : 'vs'}
+                                </strong>
+                                <span>{teamName(match, 'away')}</span>
+                              </div>
+                              {played && <div class="played-mark"><CheckCircle size={13} aria-hidden="true" /> Jugado</div>}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  </div>
+</Layout>
+
+<style>
+  .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(7,15,31,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .topbar-inner { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-brand { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+  .topbar-ball { color: hsl(35 100% 55%); display: inline-flex; }
+  .topbar-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: 0.1em; color: #fff; }
+  .topbar-actions { display: flex; align-items: center; gap: 0.75rem; }
+  .topbar-accent { height: 2px; background: linear-gradient(90deg, hsl(35 100% 48%), hsl(216 85% 45%), transparent); }
+  .nav-link, .btn-crear { font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; border-radius: 6px; }
+  .nav-link { color: hsl(215 20% 65%); padding: 0.3rem 0.6rem; }
+  .nav-link:hover { background: rgba(255,255,255,0.06); color: hsl(210 20% 92%); }
+  .btn-crear { padding: 0.35rem 0.875rem; background: hsl(35 100% 48%); color: hsl(220 72% 7%); }
+  .btn-logout { background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 0.3rem 0.75rem; color: hsl(215 20% 60%); font-family: 'Barlow', sans-serif; font-size: 0.8125rem; text-decoration: none; cursor: pointer; }
+  .user-badge { display: flex; align-items: center; gap: 0.4rem; border: 1px solid rgba(246,164,0,0.25); color: hsl(35 100% 65%); border-radius: 20px; padding: 0.25rem 0.875rem; font-size: 0.8125rem; font-weight: 600; }
+  .user-dot { width: 6px; height: 6px; border-radius: 50%; background: hsl(35 100% 55%); }
+  .page-content { flex: 1; max-width: 1100px; width: 100%; margin: 0 auto; padding: 2.5rem 1.25rem; }
+  .tournament-detail { display: flex; flex-direction: column; gap: 1.25rem; }
+  .detail-top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .link-back, .btn-back { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: hsl(35 100% 55%); text-decoration: none; width: fit-content; }
+  .hero-panel { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; align-items: stretch; }
+  .hero-main, .signup-panel, .info-item, .detail-section { background: hsl(220 55% 11%); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+  .hero-main {
+    padding: 1.5rem 2rem 2rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    justify-content: flex-end;
+    background-image: linear-gradient(135deg, rgba(246,164,0,0.14), transparent 42%), linear-gradient(180deg, hsl(220 55% 13%), hsl(220 55% 9%));
+  }
+  .eyebrow { display: flex; align-items: center; gap: 0.45rem; font-family: 'Barlow Condensed', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: hsl(42 100% 62%); margin-bottom: 0.75rem; }
+  h1 { margin: 0; font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.5rem, 9vw, 5.5rem); line-height: 0.9; letter-spacing: 0.03em; color: white; }
+  .hero-description { max-width: 680px; margin: 0.9rem 0 0; color: hsl(215 20% 72%); font-size: 1rem; line-height: 1.55; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.25rem; }
+  .hero-meta span { display: inline-flex; align-items: center; gap: 0.4rem; color: hsl(210 20% 90%); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); border-radius: 999px; padding: 0.4rem 0.7rem; font-size: 0.875rem; }
+  .signup-panel { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .status-pill { width: fit-content; border: 1px solid rgba(246,164,0,0.35); color: hsl(42 100% 65%); border-radius: 999px; padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .capacity-number { font-family: 'Bebas Neue', sans-serif; color: white; font-size: 3.2rem; line-height: 0.95; margin: 0; }
+  .capacity-number span { color: hsl(215 20% 50%); font-size: 1.6rem; }
+  .capacity-label { margin: 0; color: hsl(215 20% 60%); font-size: 0.85rem; }
+  .capacity-bar { height: 6px; background: hsl(220 45% 18%); border-radius: 999px; overflow: hidden; }
+  .capacity-bar span { display: block; height: 100%; background: hsl(35 100% 50%); border-radius: inherit; }
+
+  /* Panel de inscripto (capitán ya registró su equipo) */
+  .enrolled-panel { display: flex; flex-direction: column; gap: 0.75rem; }
+  .enrolled-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: hsl(140 60% 12%); border: 1px solid hsl(140 50% 28%);
+    color: hsl(140 70% 55%); border-radius: 8px;
+    padding: 0.55rem 0.85rem; font-size: 0.82rem; font-weight: 600;
+  }
+  .enrolled-team-name {
+    font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem;
+    color: white; margin: 0; letter-spacing: 0.03em;
+  }
+  .leave-wrap { margin-top: 0.25rem; }
+
+  /* Botón darse de baja — estilos globales para LeaveTournamentButton en este contexto */
+  :global(.leave-tournament-btn) {
+    width: 100%; justify-content: center; font-size: 0.85rem;
+  }
+  :global(.detail-register-form) { display: grid; gap: 0.65rem; margin-top: 0.35rem; }
+  :global(.detail-team-input) { min-height: 42px; border: 1px solid rgba(255,255,255,0.12); background: hsl(220 55% 8%); color: white; border-radius: 8px; padding: 0 0.8rem; outline: none; }
+  :global(.detail-form-error) { margin: 0; color: hsl(0 72% 70%); font-size: 0.85rem; }
+  :global(.detail-form-message) { margin: 0; color: hsl(142 72% 65%); font-size: 0.85rem; }
+  :global(.team-builder-count), :global(.captain-panel) { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; color: hsl(215 20% 70%); font-size: 0.84rem; }
+  :global(.team-builder-count strong), :global(.captain-panel strong) { color: white; }
+  :global(.captain-panel) { align-items: flex-start; flex-direction: column; background: rgba(255,255,255,0.055); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; padding: 0.75rem; }
+  :global(.captain-panel span) { color: hsl(35 100% 65%); font-weight: 700; }
+  :global(.player-search-box) { min-height: 40px; display: flex; align-items: center; gap: 0.55rem; border: 1px solid rgba(255,255,255,0.12); background: hsl(220 55% 8%); color: hsl(215 20% 55%); border-radius: 8px; padding: 0 0.75rem; }
+  :global(.player-search-input) { width: 100%; min-width: 0; color: white; outline: none; font-size: 0.88rem; }
+  :global(.selected-player-list), :global(.player-results-list) { display: grid; gap: 0.45rem; }
+  :global(.selected-player-chip), :global(.player-result-item) { min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: hsl(210 20% 90%); padding: 0.45rem 0.65rem; font-size: 0.84rem; cursor: pointer; }
+  :global(.selected-player-chip:hover), :global(.player-result-item:hover) { border-color: rgba(246,164,0,0.35); color: white; }
+  :global(.player-result-avatar) { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: hsl(35 100% 48%); color: hsl(220 72% 7%); font-size: 0.68rem; font-weight: 800; }
+  :global(.player-result-item span:nth-child(2)) { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+  :global(.player-results-note) { color: hsl(215 20% 55%); font-size: 0.82rem; border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; padding: 0.6rem 0.7rem; }
+  :global(.detail-login-button), :global(.registration-closed) { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-height: 42px; border-radius: 8px; text-decoration: none; font-weight: 700; }
+  :global(.detail-login-button) { background: hsl(35 100% 48%); color: hsl(220 72% 7%); }
+  :global(.registration-closed) { background: rgba(255,255,255,0.06); color: hsl(215 20% 62%); padding: 0 0.75rem; }
+  .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .info-item { padding: 1rem; display: flex; align-items: flex-start; gap: 0.85rem; color: hsl(35 100% 55%); }
+  .info-item span { display: block; color: hsl(215 20% 50%); font-size: 0.8rem; margin-bottom: 0.25rem; }
+  .info-item strong { color: hsl(210 20% 90%); font-size: 0.95rem; font-weight: 600; }
+  .content-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 1rem; align-items: start; }
+  .detail-section { padding: 1.25rem; }
+  .section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+  .section-heading h2 { margin: 0; font-family: 'Bebas Neue', sans-serif; color: white; font-size: 2rem; letter-spacing: 0.04em; }
+  .section-heading span { color: hsl(215 20% 50%); font-size: 0.85rem; }
+  .teams-list, .rounds-list, .matches-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+  .team-row { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.035); border-radius: 10px; padding: 0.9rem; }
+  .team-title { display: flex; align-items: center; gap: 0.8rem; }
+  .team-mark, .player-dot { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
+  .team-mark { width: 42px; height: 42px; background: hsl(35 100% 48%); color: hsl(220 72% 7%); font-weight: 800; }
+  .team-title h3 { margin: 0; color: white; font-size: 1rem; }
+  .team-title p { margin: 0.2rem 0 0; color: hsl(215 20% 58%); font-size: 0.86rem; }
+  .players-mini { list-style: none; padding: 0.75rem 0 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .players-mini li { display: inline-flex; align-items: center; gap: 0.4rem; color: hsl(215 20% 75%); font-size: 0.85rem; }
+  .player-dot { width: 24px; height: 24px; background: hsl(220 45% 18%); color: hsl(35 100% 62%); font-size: 0.68rem; font-weight: 800; }
+  .round-block h3 { margin: 0 0 0.55rem; color: hsl(35 100% 62%); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; }
+  .fixture-match { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.035); border-radius: 10px; padding: 0.85rem; }
+  .fixture-match--played { border-color: rgba(34,197,94,0.28); }
+  .fixture-time, .played-mark { display: flex; align-items: center; gap: 0.4rem; color: hsl(215 20% 55%); font-size: 0.8rem; }
+  .fixture-line { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.7rem; margin-top: 0.55rem; color: white; }
+  .fixture-line span { min-width: 0; overflow-wrap: anywhere; }
+  .fixture-line span:last-child { text-align: right; }
+  .fixture-line strong { color: hsl(35 100% 58%); font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; }
+  .played-mark { margin-top: 0.45rem; color: hsl(142 72% 65%); }
+  .empty-state, .not-found { color: hsl(215 20% 55%); border: 1px dashed rgba(255,255,255,0.14); border-radius: 10px; padding: 1.5rem; text-align: center; }
+
+  /* T4: fechas pasadas atenuadas en gris — issue #132 */
+  .fixture-match--past {
+    opacity: 0.55;
+    filter: grayscale(0.5);
+    pointer-events: none;
+  }
+  .fixture-match--past .fixture-time,
+  .fixture-match--past .fixture-line { color: hsl(215 10% 55%); }
+
+  /* Grupo badge */
+  .group-badge {
+    display: inline-flex; align-items: center;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    background: rgba(27,105,224,0.12); color: hsl(216 70% 65%);
+    border-radius: 4px; padding: 0.1rem 0.45rem; margin-bottom: 0.25rem;
+  }
+
+  /* Sección bracket de eliminación */
+  .elim-bracket-section { margin-top: 1.5rem; }
+  .elim-bracket-title {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase; color: hsl(42 100% 55%);
+    margin: 0 0 0.75rem;
+  }
+
+  /* Overrides light mode para T4 */
+  :global(html.light) .fixture-match--past { opacity: 0.45; filter: grayscale(0.6); }
+  :global(html.light) .group-badge { background: hsl(216 100% 93%); color: hsl(216 70% 35%); }
+  .nf-title { font-family: 'Bebas Neue', sans-serif; color: white; font-size: 2rem; margin: 0 0 0.35rem; }
+  .nf-sub { margin: 0 0 1rem; }
+  @media (max-width: 850px) {
+    .hero-panel, .content-grid, .info-grid { grid-template-columns: 1fr; }
+    .topbar-actions .nav-link, .topbar-actions .btn-crear, .user-badge { display: none; }
+    .page-content { padding: 1.25rem 1rem; }
+    .hero-main { padding: 1.35rem; min-height: 230px; }
+  }
+
+  /* ── Tema claro — tarjetas con fondo claro y texto oscuro ── */
+  :global(html.light) .hero-main,
+  :global(html.light) .signup-panel,
+  :global(html.light) .info-item,
+  :global(html.light) .detail-section {
+    background: hsl(0 0% 100%);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+  :global(html.light) h1,
+  :global(html.light) .section-heading h2,
+  :global(html.light) .team-title h3,
+  :global(html.light) .capacity-number,
+  :global(html.light) .fixture-line { color: hsl(220 72% 10%); }
+  :global(html.light) .hero-description,
+  :global(html.light) .hero-meta span,
+  :global(html.light) .signup-panel p,
+  :global(html.light) .info-item span,
+  :global(html.light) .section-heading span,
+  :global(html.light) .team-title p,
+  :global(html.light) .players-mini li,
+  :global(html.light) .fixture-time,
+  :global(html.light) .played-mark,
+  :global(html.light) .empty-state { color: hsl(215 16% 42%); }
+  :global(html.light) .info-item strong { color: hsl(220 72% 10%); }
+  :global(html.light) .capacity-number span { color: hsl(215 16% 50%); }
+  :global(html.light) .hero-meta span {
+    background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.08);
+    color: hsl(220 20% 25%);
+  }
+  :global(html.light) .team-row,
+  :global(html.light) .fixture-match {
+    background: hsl(210 40% 97%);
+    border-color: rgba(0,0,0,0.07);
+  }
+  :global(html.light) .player-dot {
+    background: hsl(210 40% 90%); color: hsl(35 100% 38%);
+  }
+  :global(html.light) .capacity-bar { background: hsl(220 20% 88%); }
+  :global(html.light) .hero-main {
+    background-image: linear-gradient(135deg, rgba(246,164,0,0.08), transparent 42%),
+      linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 97%));
+  }
+  :global(html.light) .enrolled-badge {
+    background: hsl(140 60% 94%); border-color: hsl(140 50% 70%);
+    color: hsl(140 70% 28%);
+  }
+  :global(html.light) .enrolled-team-name { color: hsl(220 72% 10%); }
+  :global(html.light) .capacity-number { color: hsl(220 72% 10%); }
+  :global(html.light) .capacity-number span { color: hsl(215 16% 48%); }
+  :global(html.light) .capacity-label { color: hsl(215 16% 42%); }
+  :global(html.light) .topbar {
+    background: rgba(255,255,255,0.93);
+    border-bottom-color: rgba(0,0,0,0.08);
+  }
+  :global(html.light) .topbar-name { color: hsl(220 72% 10%); }
+  :global(html.light) .nav-link { color: hsl(220 20% 35%); }
+  :global(html.light) .nav-link:hover { color: hsl(220 72% 10%); background: rgba(0,0,0,0.04); }
+  :global(html.light) .user-badge { color: hsl(220 20% 40%); }
+  :global(html.light) .btn-logout { color: hsl(220 20% 45%); border-color: rgba(0,0,0,0.12); }
+
+  /* Registration form global overrides for light mode */
+  :global(html.light .detail-team-input) {
+    background: hsl(210 40% 97%) !important;
+    border-color: rgba(0,0,0,0.12) !important;
+    color: hsl(220 72% 10%) !important;
+  }
+  :global(html.light .player-search-box) {
+    background: hsl(210 40% 97%) !important;
+    border-color: rgba(0,0,0,0.12) !important;
+    color: hsl(220 20% 35%) !important;
+  }
+  :global(html.light .player-search-input) { color: hsl(220 72% 10%) !important; }
+  :global(html.light .selected-player-chip),
+  :global(html.light .player-result-item) {
+    background: hsl(210 40% 95%) !important;
+    border-color: rgba(0,0,0,0.08) !important;
+    color: hsl(220 20% 25%) !important;
+  }
+  :global(html.light .captain-panel) {
+    background: hsl(210 40% 96%) !important;
+    border-color: rgba(0,0,0,0.08) !important;
+  }
+  :global(html.light .captain-panel strong),
+  :global(html.light .team-builder-count strong) { color: hsl(220 72% 10%) !important; }
+  :global(html.light .team-builder-count) { color: hsl(215 16% 40%) !important; }
+  :global(html.light .player-results-note) {
+    border-color: rgba(0,0,0,0.1) !important;
+    color: hsl(215 16% 45%) !important;
+  }
+  :global(html.light .registration-closed) {
+    background: hsl(210 40% 95%) !important;
+    color: hsl(215 16% 45%) !important;
+  }
+</style>

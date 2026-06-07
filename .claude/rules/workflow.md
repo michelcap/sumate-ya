@@ -1,0 +1,69 @@
+---
+paths:
+  - '**'
+---
+
+# Global Workflow Rules
+
+## Notion Documentation Sync (MANDATORY)
+
+After completing any feature implementation or business logic change, update the Notion page `sumateya/docs` before considering the task complete.
+
+### Rules
+
+- Always document what changed and why.
+- Include affected areas/files and operational or migration notes when relevant.
+- If Notion access is unavailable or unauthenticated, ask the user to authenticate before continuing this documentation step.
+
+## Database Operations via Supabase MCP (MANDATORY)
+
+All database operations must be executed via Supabase MCP.
+
+### Rules
+
+- Use Supabase MCP for schema changes, migrations, SQL queries, data updates, and diagnostics.
+- Do not perform direct database operations through local scripts/CLI when Supabase MCP is expected.
+- If Supabase MCP access is unavailable or unauthenticated, pause DB-related work and ask the user to authenticate before continuing.
+- Never provide raw SQL code to users for manual execution in Supabase.
+- If a user asks for SQL, convert the request into a Supabase MCP action plan and execute it through MCP tools.
+- Always insist that the user connect/authenticate Supabase MCP first when DB work is requested and MCP is not available.
+- Never instruct users to apply SQL directly in the Supabase SQL editor.
+
+## Typecheck Before Completion (MANDATORY)
+
+After any task that edits files in the workspace, run `turbo typecheck --force` from the repository root before marking the task complete.
+
+### Rules
+
+- This validation is required for every editing task, even if the change looks isolated.
+- The task is not complete unless `turbo typecheck --force` exits successfully.
+- If typecheck fails, continue working until the failure is resolved or clearly blocked.
+- Do not claim success, completion, or readiness for review while typecheck is failing.
+
+## E2E Regression Check Before Completion (MANDATORY)
+
+Before finishing any functionality or behavior change, run the relevant e2e tests in background mode with `showreport off` to verify the touched flow did not regress.
+
+### Rules
+
+- Run the narrowest e2e coverage that exercises the changed path first; widen the scope only if the change crosses shared flows.
+- If the e2e run exposes regressions, fix them in the same task before marking the work complete.
+- Do not close the task until the e2e checks pass or the failure is clearly blocked by an external dependency.
+
+## Decision Context Comment Blocks (MANDATORY)
+
+After any feature implementation or business logic change, add or update a decision context comment block in the changed code.
+
+### Rules
+
+- Place one structured comment block close to the core logic that changed.
+- Document: why this approach was chosen, full context/constraints, and previously fixed bugs or regressions this change must not reintroduce.
+- Include assumptions or operational caveats that future edits must respect.
+- If no related prior bug exists, explicitly write: `Previously fixed bugs: none relevant.`
+- Update existing decision context blocks when logic evolves; do not leave stale or duplicate rationale comments.
+
+### Agent Benefit
+
+- Keeps high-value implementation context discoverable without re-reading long chat history.
+- Helps prevent known regressions by surfacing historical bug fixes next to the affected logic.
+- Makes maintenance faster by preserving rationale and tradeoffs at the point of change.

@@ -1,0 +1,28 @@
+# Leave Match Schema
+#
+# Decision Context:
+# - Uses `extend type Mutation` because `type Mutation` is declared in create-match.graphql.
+# - LeaveMatchResult differs from JoinMatchResult: it does not return success/message because
+#   the resolver always returns LeaveMatchResult (never throws a raw Apollo error). Business
+#   errors are surfaced via GraphQL errors array at the resolver level.
+# - match is nullable for backward compatibility with older auto-delete clients. The current
+#   behavior preserves the row and marks it CANCELLED when the last participant leaves.
+# - Auto-cancellation decision: a match with 0 participants has no operational value in the
+#   active listings, but preserving it as cancelled keeps audit/history and organizer context.
+# - Previously fixed bugs: none relevant.
+
+input LeaveMatchInput {
+  matchId: ID!
+}
+
+type LeaveMatchResult {
+  # Updated match with fresh participant counts; nullable for backward compatibility
+  match: Match
+  # Legacy flag. Current zero-participant behavior returns false and a CANCELLED match.
+  matchDeleted: Boolean!
+}
+
+extend type Mutation {
+  # Leave a match as a player. Requires authentication. Respects DELETE RLS on matchParticipants.
+  leaveMatch(input: LeaveMatchInput!): LeaveMatchResult!
+}

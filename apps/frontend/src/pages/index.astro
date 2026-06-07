@@ -1,0 +1,18 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import HomeScreen from '../components/home/HomeScreen';
+import { getSessionFromBackend, readAccessToken } from '../lib/auth';
+
+const accessToken = readAccessToken(Astro.cookies);
+const user = accessToken ? await getSessionFromBackend(accessToken) : null;
+---
+
+<Layout>
+	<HomeScreen
+		client:load
+		isAuthenticated={user !== null}
+		userName={user?.displayName}
+	/>
+</Layout>

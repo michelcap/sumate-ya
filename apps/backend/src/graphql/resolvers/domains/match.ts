@@ -1,0 +1,177 @@
+/**
+ * Match Resolver - GraphQL resolvers for Match queries and mutations
+ *
+ * Decision Context:
+ * - Why: Lives under `resolvers/domains/` per backend.md MANDATORY resolver layout.
+ * - Pattern: Resolvers are thin orchestration. They call services and handle side effects.
+ * - match(id): upgraded to return participant data (see getMatchDetail). Auth context is
+ *   passed so isCurrentUserJoined / canJoin flags are computed per-user.
+ *   Public callers (no token) still get the match data; flags are null.
+ * - joinMatch: requires authentication + player role (enforced in service). Returns the
+ *   updated Match with participants so the frontend can re-render without a second query.
+ * - leaveMatch: requires authentication. Errors are returned via Apollo's errors array
+ *   (thrown from the service) so the client receives a clean Spanish message. The result
+ *   type always has matchDeleted to tell the frontend whether to redirect or reload.
+ * - createMatch: unchanged from previous implementation.
+ * - myMatches: auth-required, Zod-validated pagination, delegates to getMyMatches service.
+ * - Previously fixed bugs:
+ *   - match(id) used getMatchById which returned no participant data — upgraded to
+ *     getMatchDetail so the detail page can show team rosters and join buttons.
+ *   - match(id) had no UUID validation — added UUID_REGEX guard to avoid wasting a
+ *     DB round-trip on obviously invalid IDs (e.g., "abc", "undefined").
+ */
+
+import { z } from 'zod';
+import { createUserClient } from '../../../config/supabase.js';
+import { matchService } from '../../../services/matchService.js';
+import { requireAuth } from '../../../types/context.js';
+import type { MutationResolvers, QueryResolvers } from '../../generated/graphql.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const myMatchesArgsSchema = z.object({
+  page: z.number().int().min(1, { message: 'La página debe ser 1 o mayor' }).default(1),
+  pageSize: z
+    .number()
+    .int()
+    .min(1, { message: 'El tamaño de página debe ser al menos 1' })
+    .max(50, { message: 'El tamaño de página no puede superar 50' })
+    .default(10),
+});
+
+const Query: QueryResolvers = {
+  /**
+   * Get matches with optional filters. Public endpoint - no auth required.
+   * Returns lightweight Match objects (no participant data) for list performance.
+   *
+   * Decision Context:
+   * - `onlyMine`: when the client requests only-my-matches we forward the authenticated
+   *   user id to the service so the repo can constrain `id IN (matchIds the user joined)`.
+   *   Anonymous callers passing `onlyMine=true` get the unfiltered public list because
+   *   `ctx.user?.id` is undefined — the service silently drops the flag in that case.
+   *   This intentionally avoids surfacing an "auth required" error so the frontend toggle
+   *   can stay enabled without forcing a sign-in redirect — the UI hides the toggle for
+   *   anonymous users as the primary guard.
+   * - Previously fixed bugs: none relevant.
+   */
+  matches: async (_parent, args, ctx) => {
+    return matchService.listMatches({ userId: ctx.user?.id }, args.filters);
+  },
+
+  /**
+   * Returns the authenticated player's completed match history.
+   *
+   * Decision Context:
+   * - requireAuth: history is personal — unauthenticated requests must not leak any data.
+   * - Zod validation: page and pageSize default to 1 and 10 respectively so the query is
+   *   always well-formed even if the client omits them. Max pageSize = 50 caps egress.
+   * - User-scoped client not needed for reads (no RLS on SELECT for completed matches in
+   *   the current policy set), but we keep the pattern consistent by passing userId.
+   * - Previously fixed bugs: none relevant.
+   */
+  myMatches: async (_parent, args, ctx) => {
+    const user = requireAuth(ctx);
+    const { page, pageSize } = myMatchesArgsSchema.parse({
+      page: args.page ?? 1,
+      pageSize: args.pageSize ?? 10,
+    });
+    return matchService.getMyMatches({ userId: user.id }, page, pageSize);
+  },
+
+  /**
+   * Get a single match by ID with full participant data.
+   * Public endpoint — auth context is optional; if present, populates isCurrentUserJoined.
+   * UUID validation prevents an unnecessary DB round-trip for obviously invalid IDs.
+   */
+  match: async (_parent, args, ctx) => {
+    if (!UUID_REGEX.test(args.id)) {
+      console.warn(`[matchResolver.match] Invalid UUID format: ${args.id}`);
+      return null;
+    }
+    return matchService.getMatchDetail(
+      {
+        userId: ctx.user?.id,
+        supabase: ctx.user && ctx.accessToken ? createUserClient(ctx.accessToken) : undefined,
+      },
+      args.id,
+    );
+  },
+};
+
+const Mutation: MutationResolvers = {
+  /**
+   * createMatch mutation resolver.
+   *
+   * Decision Context:
+   * - Auth required: calls requireAuth so unauthenticated requests get a clean error.
+   * - User-scoped client: created from context.accessToken so DB RLS policies that check
+   *   auth.uid() are enforced for the INSERT on matches and matchParticipants.
+   * - Previously fixed bugs: none relevant.
+   */
+  createMatch: async (_parent, args, ctx) => {
+    const user = requireAuth(ctx);
+    const userClient = ctx.accessToken ? createUserClient(ctx.accessToken) : undefined;
+
+    try {
+      return await matchService.createMatch(args.input, {
+        userId: user.id,
+        supabase: userClient,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al crear el partido';
+      console.error(`[matchResolver.createMatch] Failed for userId=${user.id}:`, error);
+      return { success: false, matchId: null, message };
+    }
+  },
+
+  /**
+   * joinMatch mutation resolver.
+   *
+   * Decision Context:
+   * - Auth required: requireAuth throws for unauthenticated requests.
+   * - User-scoped client: passed to service so the INSERT on matchParticipants satisfies
+   *   the RLS policy (playerId = auth.uid()).
+   * - Errors are returned as { success: false, message } rather than thrown so Apollo does
+   *   not wrap them in a generic 500 — the client can display the Spanish message directly.
+   * - Previously fixed bugs: none relevant.
+   */
+  joinMatch: async (_parent, args, ctx) => {
+    const user = requireAuth(ctx);
+    const userClient = ctx.accessToken ? createUserClient(ctx.accessToken) : undefined;
+
+    try {
+      return await matchService.joinMatch(args.input, {
+        userId: user.id,
+        supabase: userClient,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al sumarse al partido';
+      console.error(`[matchResolver.joinMatch] Failed for userId=${user.id}:`, error);
+      return { success: false, message, match: null };
+    }
+  },
+  /**
+   * leaveMatch mutation resolver.
+   *
+   * Decision Context:
+   * - Auth required: requireAuth throws for unauthenticated requests.
+   * - User-scoped client: passed to service so DELETE on matchParticipants satisfies
+   *   the RLS policy (auth.uid() = playerId). The service-role singleton is used internally
+   *   for the auto-delete and status update operations that require bypassing RLS.
+   * - Errors are re-thrown (not caught into a result shape) so Apollo wraps them in the
+   *   `errors` array. LeaveMatchResult only carries data, not error state — this keeps
+   *   the schema cleaner and avoids a parallel success/message pattern.
+   * - Previously fixed bugs: none relevant.
+   */
+  leaveMatch: async (_parent, args, ctx) => {
+    const user = requireAuth(ctx);
+    const userClient = ctx.accessToken ? createUserClient(ctx.accessToken) : undefined;
+
+    return await matchService.leaveMatch(args.input, {
+      userId: user.id,
+      supabase: userClient,
+    });
+  },
+};
+
+export const matchResolvers = { Query, Mutation };

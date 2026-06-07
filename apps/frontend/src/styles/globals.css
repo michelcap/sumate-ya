@@ -1,0 +1,1444 @@
+@import "tailwindcss";
+
+/*
+ * Design System — Sumate Ya (v2 — mejora_Front)
+ *
+ * Decision Context:
+ * - Dark-first: sin clase en <html> = tema oscuro (comportamiento actual, sin rotura).
+ *   html.light agrega el tema claro como opt-in; todas las utilities de Tailwind que
+ *   usan variables CSS (bg-background, text-foreground, etc.) se adaptan automáticamente.
+ * - Variante Tailwind v4: @variant light registra el prefijo light: para casos donde
+ *   un componente necesite un override específico de tema claro.
+ * - Inter reemplaza Barlow como fuente body principal. Barlow queda como fallback para
+ *   mantener compatibilidad con los componentes existentes que la referencian inline.
+ * - Animaciones globales: fadeUp / slideUp / fadeIn disponibles en toda la app.
+ * - Previously fixed bugs: none relevant.
+ */
+
+/* Variante Tailwind v4 para estilos específicos de tema claro */
+@variant light (&:where(.light, .light *));
+
+@theme {
+  /* --- Background & surface --- */
+  --color-background: hsl(220 72% 7%);
+  --color-foreground: hsl(210 20% 94%);
+
+  --color-card: hsl(220 55% 11%);
+  --color-card-foreground: hsl(210 20% 94%);
+
+  --color-popover: hsl(220 55% 11%);
+  --color-popover-foreground: hsl(210 20% 94%);
+
+  /* --- Primary: FIFA orange/gold --- */
+  --color-primary: hsl(35 100% 48%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  /* --- Secondary: FIFA blue --- */
+  --color-secondary: hsl(216 85% 45%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+
+  /* --- Muted surfaces --- */
+  --color-muted: hsl(220 40% 16%);
+  --color-muted-foreground: hsl(215 20% 55%);
+
+  /* --- Accent: bright blue highlight --- */
+  --color-accent: hsl(216 85% 50%);
+  --color-accent-foreground: hsl(0 0% 100%);
+
+  /* --- Destructive --- */
+  --color-destructive: hsl(0 72% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  /* --- Borders & inputs --- */
+  --color-border: hsl(220 30% 20%);
+  --color-input: hsl(220 30% 16%);
+  --color-ring: hsl(35 100% 48%);
+
+  /* --- Border radius --- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+
+  /* --- FIFA custom tokens --- */
+  --color-pitch: hsl(220 72% 7%);
+  --color-fifa-orange: hsl(35 100% 48%);
+  --color-fifa-blue: hsl(216 85% 45%);
+  --color-fifa-gold: hsl(42 100% 55%);
+  --color-surface-glass: rgba(255, 255, 255, 0.05);
+  --color-surface-glass-hover: rgba(255, 255, 255, 0.08);
+  --color-surface-border: rgba(255, 255, 255, 0.1);
+
+  /* --- Success / voting semantic colors --- */
+  --color-success: hsl(142 72% 50%);
+  --color-success-foreground: hsl(142 72% 65%);
+  --color-success-surface: hsl(142 30% 8%);
+
+  /* --- Typography utilities --- */
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-sans: 'Inter', 'Barlow', system-ui, sans-serif;
+  --font-condensed: 'Barlow Condensed', system-ui, sans-serif;
+}
+
+/* =====================================================
+   Tema claro — variables CSS que sobreescriben @theme
+   Aplica cuando <html class="light"> está activo.
+   Los colores FIFA primarios (naranja, azul) se mantienen
+   idénticos para preservar la identidad de marca.
+   ===================================================== */
+
+html.light {
+  --color-background: hsl(210 20% 97%);
+  --color-foreground: hsl(220 72% 10%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(220 72% 10%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(220 72% 10%);
+  --color-primary: hsl(35 100% 44%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(216 85% 45%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-muted: hsl(210 40% 94%);
+  --color-muted-foreground: hsl(215 16% 42%);
+  --color-accent: hsl(216 85% 50%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(220 13% 88%);
+  --color-input: hsl(220 13% 95%);
+  --color-ring: hsl(35 100% 44%);
+  --color-pitch: hsl(210 20% 97%);
+  --color-fifa-orange: hsl(35 100% 44%);
+  --color-surface-glass: rgba(255, 255, 255, 0.72);
+  --color-surface-glass-hover: rgba(255, 255, 255, 0.88);
+  --color-surface-border: rgba(0, 0, 0, 0.06);
+  --color-success-surface: hsl(142 30% 96%);
+}
+
+/* =====================================================
+   Base styles
+   ===================================================== */
+
+body {
+  @apply bg-background text-foreground;
+  font-family: 'Inter', 'Barlow', system-ui, sans-serif;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(216 85% 20% / 0.4), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, hsl(216 85% 15% / 0.2), transparent);
+  min-height: 100vh;
+  /* Transición suave al cambiar de tema */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Fondo del tema claro: gradiente suave azul/naranja sobre blanco */
+html.light body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(216 85% 60% / 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, hsl(35 100% 65% / 0.08), transparent);
+}
+
+/* Pitch grid overlay for stadium feel */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Grid sobre fondo claro: líneas muy sutiles en oscuro */
+html.light body::before {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
+}
+
+/* Stack content above the grid */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* =====================================================
+   Animaciones globales — disponibles en toda la app
+   ===================================================== */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-up  { animation: fadeUp  0.5s ease both; }
+.animate-slide-up { animation: slideUp 0.6s ease both; }
+.animate-fade-in  { animation: fadeIn  0.4s ease both; }
+
+/* =====================================================
+   Club Slot Management — shared component styles
+   Used by SlotManager, SlotListView, SlotEditModal,
+   BulkBlockDialog
+   ===================================================== */
+
+/* Slot manager container */
+.slot-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+}
+.toolbar-left { display: flex; align-items: center; gap: 0.625rem; }
+.toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
+.slots-count { font-size: 0.8125rem; font-family: 'Barlow',sans-serif; color: hsl(215 20% 55%); }
+.selection-badge {
+  font-size: 0.75rem; font-family: 'Barlow Condensed',sans-serif; font-weight: 700;
+  background: rgba(246,164,0,0.12); border: 1px solid rgba(246,164,0,0.25);
+  color: hsl(42 100% 65%); border-radius: 20px; padding: 0.125rem 0.625rem;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary, .btn-ghost, .btn-destructive {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.4rem 0.875rem; border-radius: 7px; border: none;
+  font-family: 'Barlow',sans-serif; font-size: 0.8125rem; font-weight: 600;
+  cursor: pointer; transition: opacity 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.btn-primary { background: hsl(35 100% 48%); color: #fff; }
+.btn-primary:hover { opacity: 0.88; }
+.btn-secondary {
+  background: rgba(255,255,255,0.06); color: hsl(210 20% 80%);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-ghost { background: transparent; color: hsl(215 20% 55%); border: 1px solid rgba(255,255,255,0.08); }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); color: hsl(210 20% 80%); }
+.btn-destructive { background: hsl(0 72% 51%); color: #fff; }
+.btn-destructive:hover { opacity: 0.88; }
+.btn-destructive:disabled, .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Icon buttons */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.05); color: hsl(215 20% 60%);
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.1); color: hsl(210 20% 90%); }
+.icon-btn--success:hover { background: rgba(34,197,94,0.15); color: hsl(142 72% 55%); }
+.icon-btn--warn:hover { background: rgba(246,164,0,0.15); color: hsl(42 100% 65%); }
+.icon-btn--danger:hover { background: rgba(239,68,68,0.15); color: hsl(0 72% 60%); }
+
+/* Feedback banners */
+.banner {
+  padding: 0.625rem 1rem; border-radius: 8px; font-size: 0.875rem;
+  font-family: 'Barlow',sans-serif;
+}
+.banner--error { background: hsl(0 30% 12%); border: 1px solid hsl(0 72% 35%); color: hsl(0 72% 70%); }
+.banner--success { background: hsl(142 30% 8%); border: 1px solid hsl(142 50% 25%); color: hsl(142 72% 60%); }
+
+/* State cards */
+.state-card {
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  padding: 2.5rem 2rem; background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; text-align: center;
+}
+.state-card--error { border-color: rgba(239,68,68,0.2); }
+.state-text { margin: 0; color: hsl(215 20% 55%); font-family: 'Barlow',sans-serif; font-size: 0.9rem; }
+
+/* Empty state */
+.empty-state { padding: 2.5rem; text-align: center; }
+.empty-text { color: hsl(215 20% 50%); font-family: 'Barlow',sans-serif; margin: 0; }
+
+/* Slot table */
+.list-wrap { overflow-x: auto; }
+.slot-table {
+  width: 100%; border-collapse: collapse; font-family: 'Barlow',sans-serif;
+  font-size: 0.8125rem; color: hsl(210 20% 85%);
+}
+.slot-table th {
+  text-align: left; padding: 0.625rem 0.75rem;
+  font-family: 'Barlow Condensed',sans-serif; font-weight: 700; font-size: 0.7rem;
+  letter-spacing: 0.12em; text-transform: uppercase; color: hsl(215 20% 40%);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.slot-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.slot-row:hover td { background: rgba(255,255,255,0.02); }
+.slot-row--selected td { background: rgba(246,164,0,0.05); }
+.slot-row--inactive { opacity: 0.45; }
+.col-check { width: 32px; }
+.col-day { font-weight: 600; }
+.col-time, .col-duration { font-variant-numeric: tabular-nums; color: hsl(215 20% 70%); }
+.col-price { font-variant-numeric: tabular-nums; }
+.col-court { color: hsl(216 85% 65%); }
+.col-reason { max-width: 180px; }
+.block-reason { font-size: 0.75rem; color: hsl(215 20% 55%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.col-actions { display: flex; gap: 4px; align-items: center; }
+
+/* Semantic status badges (improvement 8) */
+.badge {
+  display: inline-block; padding: 0.2rem 0.5rem; border-radius: 20px;
+  font-size: 0.7rem; font-family: 'Barlow Condensed',sans-serif; font-weight: 700;
+  letter-spacing: 0.06em; white-space: nowrap;
+}
+.badge--available { background: rgba(34,197,94,0.12); color: hsl(142 72% 55%); border: 1px solid rgba(34,197,94,0.2); }
+.badge--match { background: rgba(246,164,0,0.12); color: hsl(42 100% 65%); border: 1px solid rgba(246,164,0,0.2); }
+.badge--blocked { background: rgba(239,68,68,0.12); color: hsl(0 72% 65%); border: 1px solid rgba(239,68,68,0.2); }
+.badge--inactive { background: rgba(255,255,255,0.04); color: hsl(215 20% 45%); border: 1px solid rgba(255,255,255,0.08); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(7,15,31,0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.modal-box {
+  background: hsl(220 55% 11%); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; width: 100%; max-width: 540px; max-height: 90vh;
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.modal-box--sm { max-width: 420px; }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem 0.875rem; border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.modal-title {
+  font-family: 'Bebas Neue',sans-serif; font-size: 1.375rem; letter-spacing: 0.04em;
+  color: #fff; margin: 0;
+}
+.modal-close {
+  background: none; border: none; cursor: pointer; color: hsl(215 20% 50%);
+  display: inline-flex; align-items: center; padding: 4px; border-radius: 4px;
+}
+.modal-close:hover { color: hsl(210 20% 80%); background: rgba(255,255,255,0.06); }
+.modal-body { padding: 1.25rem 1.5rem; flex: 1; display: flex; flex-direction: column; gap: 1rem; }
+.modal-footer {
+  padding: 1rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; justify-content: flex-end; gap: 0.625rem;
+}
+.modal-error {
+  margin: 0 1.5rem; padding: 0.5rem 0.75rem; border-radius: 6px;
+  background: hsl(0 30% 12%); border: 1px solid hsl(0 72% 35%);
+  color: hsl(0 72% 70%); font-size: 0.8125rem; font-family: 'Barlow',sans-serif;
+}
+
+/* Tab bar */
+.tab-bar { display: flex; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 0 1.5rem; }
+.tab-btn {
+  padding: 0.625rem 0.875rem; background: none; border: none; cursor: pointer;
+  font-family: 'Barlow',sans-serif; font-size: 0.875rem; font-weight: 600;
+  color: hsl(215 20% 50%); border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.tab-btn:hover { color: hsl(210 20% 80%); }
+.tab-btn--active { color: hsl(42 100% 65%); border-bottom-color: hsl(42 100% 65%); }
+
+/* Info list (SlotEditModal info tab) */
+.info-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; }
+.info-row { display: flex; gap: 1rem; align-items: baseline; }
+.info-label {
+  width: 140px; flex-shrink: 0; font-family: 'Barlow Condensed',sans-serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: hsl(215 20% 45%);
+}
+.info-value { font-family: 'Barlow',sans-serif; font-size: 0.875rem; color: hsl(210 20% 85%); }
+
+/* Form fields */
+.form-grid { display: flex; flex-direction: column; gap: 0.875rem; }
+.form-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-field--toggle { flex-direction: row; align-items: center; gap: 0.625rem; }
+.form-label {
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: hsl(215 20% 50%);
+}
+.form-input, .form-select, .form-textarea {
+  background: hsl(220 30% 16%); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px; padding: 0.5rem 0.75rem; color: hsl(210 20% 90%);
+  font-family: 'Barlow',sans-serif; font-size: 0.875rem; outline: none; width: 100%;
+  transition: border-color 0.12s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: hsl(35 100% 48%);
+}
+.form-select option { background: hsl(220 55% 11%); }
+.form-textarea { resize: vertical; }
+.block-current-state {
+  padding: 0.625rem 0.875rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07); border-radius: 7px;
+  font-family: 'Barlow',sans-serif; font-size: 0.875rem; color: hsl(215 20% 60%);
+}
+
+/* Impact preview */
+.impact-summary {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; padding: 0.875rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+}
+.impact-row { display: flex; justify-content: space-between; align-items: center; }
+.impact-label { font-family: 'Barlow',sans-serif; font-size: 0.875rem; color: hsl(215 20% 55%); }
+.impact-value { font-family: 'Bebas Neue',sans-serif; font-size: 1.1rem; color: #fff; }
+.impact-value--warn { color: hsl(42 100% 65%); }
+
+/* Match list in impact preview */
+.match-list { display: flex; flex-direction: column; gap: 0.375rem; }
+.match-list-title {
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: hsl(215 20% 45%); margin: 0 0 0.25rem;
+}
+.match-item {
+  display: flex; flex-direction: column; gap: 2px; padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.03); border-radius: 6px;
+}
+.match-title { font-family: 'Barlow',sans-serif; font-size: 0.875rem; color: hsl(210 20% 80%); }
+.match-meta { font-family: 'Barlow',sans-serif; font-size: 0.75rem; color: hsl(215 20% 50%); }
+
+/* Warning banner */
+.warning-banner {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.625rem 0.875rem; border-radius: 7px;
+  background: rgba(246,164,0,0.08); border: 1px solid rgba(246,164,0,0.2);
+  color: hsl(42 100% 65%); font-family: 'Barlow',sans-serif; font-size: 0.875rem;
+}
+
+/* Confirm checkbox */
+.confirm-check {
+  display: flex; align-items: flex-start; gap: 0.625rem; cursor: pointer;
+  font-family: 'Barlow',sans-serif; font-size: 0.875rem; color: hsl(210 20% 80%);
+}
+.confirm-check input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+
+/* ─── View toggle ─────────────────────────────────────────── */
+.view-toggle {
+  display: inline-flex; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px; overflow: hidden;
+}
+.view-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.35rem 0.7rem; background: transparent; border: none;
+  font-family: 'Barlow',sans-serif; font-size: 0.78rem; font-weight: 600;
+  color: hsl(215 20% 50%); cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.view-btn:hover { background: rgba(255,255,255,0.05); color: hsl(210 20% 80%); }
+.view-btn--active { background: rgba(246,164,0,0.14); color: hsl(42 100% 65%); }
+.view-btn + .view-btn { border-left: 1px solid rgba(255,255,255,0.08); }
+
+/* ─── Calendar wrap ───────────────────────────────────────── */
+.cal-wrap {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden;
+}
+
+/* Header row (sticky) */
+.cal-header-row {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  position: sticky; top: 0; z-index: 2;
+  background: hsl(220 55% 10%);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.cal-corner { } /* empty top-left cell */
+.cal-day-head {
+  padding: 0.55rem 0.25rem; text-align: center;
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.7rem;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: hsl(215 20% 45%); border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Scrollable body */
+.cal-body {
+  max-height: 70vh; overflow-y: auto; overflow-x: hidden;
+}
+.cal-body::-webkit-scrollbar { width: 4px; }
+.cal-body::-webkit-scrollbar-track { background: transparent; }
+.cal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Each hour row */
+.cal-row {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.cal-row:hover { background: rgba(255,255,255,0.01); }
+
+/* Time label */
+.cal-time {
+  padding: 0 0.5rem; display: flex; align-items: center; justify-content: flex-end;
+  font-size: 0.65rem; font-family: 'Barlow Condensed',sans-serif;
+  color: hsl(215 20% 35%); height: 38px; flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Calendar cell */
+.cal-cell {
+  position: relative; height: 38px; cursor: pointer;
+  border-left: 1px solid rgba(255,255,255,0.04);
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  transition: filter 0.1s;
+}
+.cal-cell:hover { filter: brightness(1.15); }
+.cal-cell:focus-visible { outline: 2px solid hsl(35 100% 48%); outline-offset: -2px; }
+
+/* Status backgrounds */
+.cal-cell--empty  { background: transparent; cursor: default; }
+.cal-cell--avail  { background: hsla(142 60% 22% / 0.55); }
+.cal-cell--match  { background: hsla(42 80% 28% / 0.6); }
+.cal-cell--blocked{ background: hsla(0 60% 20% / 0.55); }
+.cal-cell--inactive { background: hsla(220 20% 14% / 0.6); opacity: 0.5; }
+.cal-cell--sel    { outline: 2px solid hsl(35 100% 48%); outline-offset: -2px; z-index: 1; }
+
+/* Checkbox — small, top-left corner */
+.cal-chk {
+  position: absolute; top: 3px; left: 3px;
+  width: 11px; height: 11px; cursor: pointer;
+  opacity: 0; transition: opacity 0.1s;
+}
+.cal-cell:hover .cal-chk,
+.cal-cell--sel .cal-chk { opacity: 1; }
+
+/* Price badge inside cell */
+.cal-price {
+  font-size: 0.6rem; font-family: 'Barlow Condensed',sans-serif;
+  color: rgba(255,255,255,0.7); font-weight: 600;
+}
+
+/* Lock icon */
+.cal-icon { color: hsl(0 72% 65%); flex-shrink: 0; }
+
+/* Match pip */
+.cal-match-pip {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: hsl(42 100% 55%); flex-shrink: 0;
+}
+
+/* Extra courts badge */
+.cal-extra {
+  position: absolute; top: 2px; right: 3px;
+  font-size: 0.55rem; font-family: 'Barlow Condensed',sans-serif;
+  color: hsl(215 20% 55%);
+}
+
+/* Legend */
+.cal-legend {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 0.625rem 1rem; background: hsl(220 40% 9%);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.cal-legend-item {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.72rem; font-family: 'Barlow',sans-serif; color: hsl(215 20% 50%);
+}
+.cal-led {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.cal-led--avail   { background: hsl(142 60% 28%); }
+.cal-led--match   { background: hsl(42 80% 38%); }
+.cal-led--blocked { background: hsl(0 60% 32%); }
+.cal-led--inactive{ background: hsl(220 20% 22%); }
+
+/* ─── Calendar nav bar ────────────────────────────────────── */
+.cal-nav {
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: hsl(220 55% 10%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cal-nav-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+  background: transparent; color: hsl(215 20% 55%); cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.cal-nav-btn:hover { background: rgba(255,255,255,0.07); color: hsl(210 20% 85%); }
+.cal-week-label {
+  flex: 1; text-align: center;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 0.875rem;
+  font-weight: 700; letter-spacing: 0.04em; color: hsl(210 20% 75%);
+  text-transform: uppercase;
+}
+.cal-today-btn {
+  padding: 0.25rem 0.625rem; border-radius: 5px;
+  background: rgba(246,164,0,0.14); border: 1px solid rgba(246,164,0,0.3);
+  color: hsl(42 100% 65%); font-family: 'Barlow',sans-serif;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer;
+  transition: background 0.12s;
+}
+.cal-today-btn:hover { background: rgba(246,164,0,0.22); }
+
+/* ─── Today column ────────────────────────────────────────── */
+.cal-day-head--today { background: rgba(246,164,0,0.07); }
+.cal-day-name {
+  display: block; font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; color: hsl(215 20% 40%);
+}
+.cal-day-num {
+  display: block; font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.72rem; color: hsl(215 20% 55%);
+}
+.cal-day-num--today {
+  color: hsl(42 100% 65%); font-weight: 700;
+}
+/* inset box-shadow renders ON TOP of the cell's own background-color so it
+   doesn't override cal-cell--avail/match/blocked (same-specificity cascade bug). */
+.cal-col--today { box-shadow: inset 0 0 0 9999px rgba(246,164,0,0.06); }
+
+/* ─── Past hour rows ──────────────────────────────────────── */
+.cal-row--past .cal-time { color: hsl(215 20% 25%); }
+.cal-cell--past { opacity: 0.35; pointer-events: none; }
+
+/* ─── Past day cells ──────────────────────────────────────── */
+/* Libre: gris claro suave */
+.cal-cell--past-day-free {
+  background: hsla(220 15% 18% / 0.55);
+  cursor: default;
+  pointer-events: none;
+}
+/* Ocupado (tenía partido o bloqueo): gris más oscuro */
+.cal-cell--past-day-busy {
+  background: hsla(220 10% 12% / 0.8);
+  cursor: default;
+  pointer-events: none;
+}
+/* Columna de día pasado: leve tinte */
+.cal-col--past { box-shadow: inset 0 0 0 9999px rgba(0,0,0,0.05); }
+
+/* Header de día pasado */
+.cal-day-head--past { opacity: 0.5; }
+.cal-day-num--past  { color: hsl(215 20% 38%); }
+
+/* Today's past hours: show real color dimmed instead of black */
+.cal-cell--dimmed { opacity: 0.45; pointer-events: none; }
+
+/* Legend: past free/busy dots */
+.cal-led--past-free { background: hsl(220 15% 28%); }
+.cal-led--past-busy { background: hsl(220 10% 18%); border: 1px solid rgba(255,255,255,0.1); }
+
+/* ─── btn-secondary active state ─────────────────────────── */
+.btn-secondary--active {
+  background: rgba(246,164,0,0.14); color: hsl(42 100% 65%);
+  border: 1px solid rgba(246,164,0,0.3);
+}
+
+/* ─── CourtPricingPanel ───────────────────────────────────── */
+.pricing-panel {
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  background: hsl(220 55% 10%); overflow: hidden;
+}
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0;
+}
+.pricing-section {
+  padding: 1rem 1.25rem;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.pricing-section:last-child { border-right: none; }
+.pricing-section--preview { grid-column: 1 / -1; }
+.pricing-section-head {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.72rem;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: hsl(42 100% 60%);
+}
+.pricing-field {
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.pricing-label {
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.68rem;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: hsl(215 20% 45%);
+}
+.pricing-input-wrap { position: relative; }
+.pricing-currency {
+  position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%);
+  color: hsl(215 20% 50%); font-family: 'Barlow',sans-serif; font-size: 0.85rem;
+  pointer-events: none;
+}
+.pricing-input-wrap .pricing-input { padding-left: 1.4rem; }
+.pricing-input {
+  width: 100%; background: hsl(220 40% 13%); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; padding: 0.45rem 0.6rem; color: hsl(210 20% 88%);
+  font-family: 'Barlow',sans-serif; font-size: 0.85rem; box-sizing: border-box;
+  transition: border-color 0.12s;
+}
+.pricing-input:focus { outline: none; border-color: hsl(42 100% 48%); }
+.pricing-hint {
+  font-family: 'Barlow',sans-serif; font-size: 0.72rem; color: hsl(215 20% 40%);
+  margin: 0;
+}
+
+/* Day-of-week buttons */
+.pricing-days { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.day-btn {
+  padding: 0.3rem 0.55rem; border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent; color: hsl(215 20% 50%);
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.72rem; font-weight: 700;
+  cursor: pointer; transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.day-btn:hover { background: rgba(255,255,255,0.06); color: hsl(210 20% 75%); }
+.day-btn--active {
+  background: rgba(246,164,0,0.15); color: hsl(42 100% 65%);
+  border-color: rgba(246,164,0,0.35);
+}
+
+/* Peak time row */
+.pricing-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
+/* Preview table */
+.price-preview {
+  width: 100%; border-collapse: collapse;
+  font-family: 'Barlow',sans-serif; font-size: 0.8rem; color: hsl(210 20% 80%);
+}
+.price-preview th {
+  text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-family: 'Barlow Condensed',sans-serif; font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; color: hsl(215 20% 40%);
+}
+.price-preview td { padding: 0.4rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.price-value { font-weight: 700; text-align: right; }
+.price-value--peak  { color: hsl(42 100% 65%); }
+.price-value--off   { color: hsl(216 85% 65%); }
+
+/* Actions bar */
+.pricing-actions {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 0.625rem; padding: 0.75rem 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: hsl(220 55% 9%);
+}
+.pricing-error { font-family: 'Barlow',sans-serif; font-size: 0.8rem; color: hsl(0 72% 65%); }
+.pricing-saved {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-family: 'Barlow',sans-serif; font-size: 0.8rem; color: hsl(142 72% 55%);
+}
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Responsive — SlotManager panel-club (mobile) ──────────── */
+@media (max-width: 767px) {
+  /* Toolbar wraps to 2 rows on narrow screens */
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 0.625rem 0.75rem;
+    gap: 0.5rem;
+  }
+  .toolbar-left  { flex-wrap: wrap; gap: 0.5rem; }
+  .toolbar-right { flex-wrap: wrap; gap: 0.375rem; }
+
+  /* Ensure all action buttons have 44px touch target */
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-destructive {
+    min-height: 44px;
+  }
+  .view-btn { min-height: 44px; padding: 0.35rem 0.875rem; }
+}
+
+/* ─── Responsive — Modals (SlotEditModal, BulkBlockDialog) ─── */
+/* On mobile, modals become bottom-sheets sliding up from the bottom.
+ * Pattern: overlay aligns to flex-end, box drops border-radius on bottom,
+ * footer buttons go full-width for touch-friendly interaction.
+ * Previously fixed bugs: none relevant (new responsive feature). */
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal-box {
+    max-width: 100%;
+    max-height: 92svh;
+    border-radius: 16px 16px 0 0;
+  }
+  .modal-box--sm { max-width: 100%; }
+  /* 44px touch target on close button */
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  /* Stack footer buttons full-width */
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  .modal-footer .btn-primary,
+  .modal-footer .btn-secondary,
+  .modal-footer .btn-destructive,
+  .modal-footer .btn-ghost {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  /* Tab bar: equal-width tabs */
+  .tab-bar { padding: 0 0.875rem; }
+  .tab-btn { flex: 1; text-align: center; }
+  /* Modal body: reduce padding */
+  .modal-body { padding: 1rem; }
+  .modal-header { padding: 1rem 1rem 0.75rem; }
+  .modal-error { margin: 0 1rem; }
+}
+
+/* =====================================================
+   Fase 6 — Topbar / Navbar: adaptación tema claro
+   Usa selectores html.light .clase con especificidad
+   (0,2,1) > scoped (0,2,0) de Astro para ganar el cascade.
+   ===================================================== */
+
+.topbar {
+  /* transición suave al cambiar de tema */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+html.light .topbar {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+html.light .topbar-name { color: hsl(220 72% 8%); }
+html.light .topbar-ball { color: hsl(35 100% 44%); }
+
+html.light .nav-link { color: hsl(215 20% 36%); }
+html.light .nav-link:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 12%);
+}
+
+html.light .user-badge {
+  background: rgba(246, 164, 0, 0.1);
+  border-color: rgba(246, 164, 0, 0.25);
+  color: hsl(35 100% 44%);
+}
+html.light .user-dot { background: hsl(35 100% 44%); box-shadow: none; }
+
+html.light .btn-logout {
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: hsl(215 20% 44%);
+}
+html.light .btn-logout:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.22);
+  color: hsl(215 20% 16%);
+}
+
+html.light .btn-torneo {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 36%);
+}
+html.light .btn-torneo:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: hsl(215 20% 12%);
+}
+
+/* ── Section headers: tema claro ─────────────────────── */
+html.light .section-title { color: hsl(220 72% 8%); }
+html.light .section-sub   { color: hsl(215 20% 42%); }
+html.light .section-label { color: hsl(35 100% 40%); }
+html.light .section-header { border-bottom-color: rgba(0, 0, 0, 0.07); }
+
+/* ── Sidebar: tema claro ──────────────────────────────── */
+html.light .sidebar-label { color: hsl(215 20% 52%); }
+html.light .sidebar-link  { color: hsl(215 20% 36%); }
+html.light .sidebar-link:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 12%);
+}
+html.light .sidebar-link--active {
+  background: rgba(246, 164, 0, 0.08);
+  border-color: rgba(246, 164, 0, 0.15);
+}
+html.light .sidebar-link--highlight { color: hsl(35 100% 42%); }
+
+/* =====================================================
+   Fase 7 — Polish final: inputs, banners, tabs
+   ===================================================== */
+
+/* ── Inputs: focus naranja consistente ───────────────── */
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: hsl(35 100% 48%);
+  box-shadow: 0 0 0 3px hsl(35 100% 48% / 0.18);
+  outline: none;
+}
+
+html.light .field input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: hsl(220 72% 10%);
+}
+html.light .field input::placeholder { color: hsl(215 20% 55%); }
+html.light .field input:focus {
+  background: white;
+  border-color: hsl(35 100% 44%);
+  box-shadow: 0 0 0 3px hsl(35 100% 44% / 0.15);
+}
+html.light .field label { color: hsl(215 20% 45%); }
+
+/* ── Login card: light mode ───────────────────────────── */
+html.light .login-card {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(246, 164, 0, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+html.light .brand-name  { color: hsl(220 72% 8%); }
+html.light .login-subtitle { color: hsl(215 20% 50%); }
+html.light .register-link  { color: hsl(215 20% 50%); }
+
+/* ── Banners: light mode ──────────────────────────────── */
+html.light .banner--error {
+  background: hsl(0 80% 96%);
+  border-color: hsl(0 72% 75%);
+  color: hsl(0 72% 40%);
+}
+html.light .banner--success {
+  background: hsl(142 60% 95%);
+  border-color: hsl(142 50% 70%);
+  color: hsl(142 72% 28%);
+}
+
+/* ── Topbar accent line ───────────────────────────────── */
+html.light .topbar-accent {
+  background: linear-gradient(90deg, hsl(35 100% 44%), hsl(216 85% 50%), transparent);
+}
+
+/* ── Topbar role pill (panel de club) ────────────────── */
+html.light .topbar-role-pill {
+  background: rgba(246, 164, 0, 0.1);
+  border-color: rgba(246, 164, 0, 0.25);
+  color: hsl(35 100% 40%);
+}
+
+/* =====================================================
+   Overrides exhaustivos — texto blanco hardcodeado
+   en modo claro. Aplican a todos los componentes
+   que usan color: #fff / #ffffff en su CSS propio.
+   ===================================================== */
+
+/* ── Modal (global + panel-club) ─────────────────────── */
+html.light .modal-title   { color: hsl(220 72% 8%); }
+html.light .modal-box {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .modal-header  { border-bottom-color: rgba(0, 0, 0, 0.07); }
+html.light .modal-footer  { border-top-color: rgba(0, 0, 0, 0.07); }
+html.light .modal-close   { color: hsl(215 20% 50%); }
+html.light .modal-close:hover { color: hsl(215 20% 20%); background: rgba(0,0,0,0.05); }
+
+/* ── Perfil: history title ────────────────────────────── */
+html.light .history-title { color: hsl(220 72% 8%); }
+
+/* ── Partidos/[id]: not found title ──────────────────── */
+html.light .nf-title      { color: hsl(220 72% 8%); }
+
+/* ── ProfileCard: todos los textos blancos ───────────── */
+html.light .profile-card {
+  background: var(--color-card);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.04);
+}
+html.light .player-name     { color: hsl(220 72% 8%); }
+html.light .stat-value      { color: hsl(220 72% 8%); }
+html.light .stat-value.winrate { color: hsl(35 100% 40%); }
+html.light .stat-label      { color: hsl(215 20% 46%); }
+html.light .role-badge      { color: hsl(215 20% 50%); }
+html.light .avatar-img      { background: hsl(210 20% 94%); }
+html.light .avatar-placeholder {
+  background: hsl(210 20% 94%);
+  color: hsl(215 20% 55%);
+}
+html.light .stats-grid       { border-top-color: rgba(0, 0, 0, 0.06); }
+html.light .stat-divider {
+  border-left-color:  rgba(0, 0, 0, 0.06);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+/* ── Slot manager — panel-club ────────────────────────── */
+html.light .toolbar {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .slots-count         { color: hsl(215 20% 50%); }
+html.light .slot-table          { color: hsl(215 20% 22%); }
+html.light .slot-table th {
+  color: hsl(215 20% 42%);
+  border-bottom-color: rgba(0, 0, 0, 0.07);
+}
+html.light .slot-table td       { border-bottom-color: rgba(0, 0, 0, 0.04); }
+html.light .col-court           { color: hsl(216 85% 45%); }
+html.light .form-input, html.light .form-select, html.light .form-textarea {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: hsl(220 72% 8%);
+}
+html.light .form-input:focus, html.light .form-select:focus, html.light .form-textarea:focus {
+  border-color: hsl(35 100% 44%);
+}
+html.light .form-label          { color: hsl(215 20% 45%); }
+html.light .block-current-state {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+  color: hsl(215 20% 42%);
+}
+html.light .impact-label        { color: hsl(215 20% 45%); }
+html.light .impact-value        { color: hsl(220 72% 8%); }
+html.light .state-card {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .state-text          { color: hsl(215 20% 50%); }
+html.light .empty-text          { color: hsl(215 20% 50%); }
+html.light .info-label          { color: hsl(215 20% 42%); }
+html.light .info-value          { color: hsl(220 72% 10%); }
+html.light .match-title         { color: hsl(215 20% 25%); }
+html.light .match-meta          { color: hsl(215 20% 50%); }
+html.light .warning-banner {
+  background: rgba(246, 164, 0, 0.06);
+  border-color: rgba(246, 164, 0, 0.2);
+}
+html.light .confirm-check       { color: hsl(215 20% 25%); }
+
+/* ── Calendar (panel-club horarios) ──────────────────── */
+html.light .cal-wrap            { border-color: rgba(0, 0, 0, 0.08); }
+html.light .cal-header-row {
+  background: hsl(210 20% 96%);
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+html.light .cal-day-head        { color: hsl(215 20% 42%); border-left-color: rgba(0,0,0,0.06); }
+html.light .cal-row             { border-bottom-color: rgba(0, 0, 0, 0.04); }
+html.light .cal-time {
+  color: hsl(215 20% 48%);
+  border-right-color: rgba(0, 0, 0, 0.07);
+}
+html.light .cal-cell            { border-left-color: rgba(0, 0, 0, 0.04); }
+html.light .cal-nav {
+  background: hsl(210 20% 96%);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+html.light .cal-nav-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 45%);
+}
+html.light .cal-nav-btn:hover   { background: rgba(0,0,0,0.05); color: hsl(215 20% 18%); }
+html.light .cal-week-label      { color: hsl(215 20% 40%); }
+html.light .cal-today-btn {
+  background: rgba(246, 164, 0, 0.08);
+  border-color: rgba(246, 164, 0, 0.3);
+  color: hsl(35 100% 40%);
+}
+html.light .cal-day-name        { color: hsl(215 20% 42%); }
+html.light .cal-day-num         { color: hsl(215 20% 50%); }
+html.light .cal-legend {
+  background: hsl(210 20% 95%);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+html.light .cal-legend-item     { color: hsl(215 20% 50%); }
+html.light .tab-bar             { border-bottom-color: rgba(0, 0, 0, 0.07); }
+html.light .tab-btn             { color: hsl(215 20% 48%); }
+html.light .tab-btn:hover       { color: hsl(215 20% 18%); }
+html.light .tab-btn--active {
+  color: hsl(35 100% 40%);
+  border-bottom-color: hsl(35 100% 40%);
+}
+
+/* ── Pricing panel ────────────────────────────────────── */
+html.light .pricing-panel {
+  border-color: rgba(0, 0, 0, 0.07);
+  background: var(--color-card);
+}
+html.light .pricing-section {
+  border-right-color:  rgba(0, 0, 0, 0.06);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html.light .pricing-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(220 72% 8%);
+}
+html.light .pricing-input:focus { border-color: hsl(35 100% 44%); }
+html.light .pricing-label       { color: hsl(215 20% 45%); }
+html.light .pricing-hint        { color: hsl(215 20% 52%); }
+html.light .pricing-actions {
+  border-top-color: rgba(0, 0, 0, 0.06);
+  background: hsl(210 20% 96%);
+}
+html.light .price-preview       { color: hsl(215 20% 25%); }
+html.light .price-preview th {
+  color: hsl(215 20% 42%);
+  border-bottom-color: rgba(0, 0, 0, 0.07);
+}
+html.light .price-preview td    { border-bottom-color: rgba(0, 0, 0, 0.04); }
+html.light .day-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 45%);
+}
+html.light .day-btn:hover       { background: rgba(0,0,0,0.04); color: hsl(215 20% 18%); }
+
+/* ── View toggle (lista/mapa) ─────────────────────────── */
+html.light .view-toggle         { border-color: rgba(0, 0, 0, 0.1); }
+html.light .view-btn            { color: hsl(215 20% 48%); }
+html.light .view-btn:hover      { background: rgba(0,0,0,0.04); color: hsl(215 20% 18%); }
+html.light .view-btn + .view-btn { border-left-color: rgba(0,0,0,0.08); }
+
+/* ── Settings page (ajustes) ──────────────────────────── */
+html.light .settings-nav-item  { color: hsl(215 20% 40%); border-color: transparent; }
+html.light .settings-nav-item:hover { background: rgba(0,0,0,0.05); color: hsl(215 20% 14%); }
+html.light .settings-section-title { color: hsl(220 72% 8%); }
+html.light .settings-section-sub   { color: hsl(215 20% 46%); }
+html.light .fetch-notice {
+  background: hsl(42 100% 96%);
+  border-color: rgba(246, 164, 0, 0.3);
+  color: hsl(35 80% 35%);
+}
+
+/* =====================================================
+   React components con <style> en JSX — todos usan
+   css classes (no inline styles) → pueden ser
+   sobreescritos con html.light .clase (spec 0,2,1)
+   que gana a la regla inyectada (0,1,0).
+   ===================================================== */
+
+/* ── ClubMatchWizard.tsx (crear-partido calendar) ─────── */
+html.light .wizard-card {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .step-circle {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 38%);
+}
+/* step connector line */
+html.light .step:not(:last-child)::after { background: rgba(0, 0, 0, 0.1); }
+html.light .step-label   { color: hsl(215 20% 40%); }
+html.light .step-title   { color: hsl(220 72% 8%); }
+html.light .step-hint    { color: hsl(215 20% 45%); }
+html.light .success-title { color: hsl(220 72% 8%); }
+html.light .success-sub   { color: hsl(215 20% 45%); }
+html.light .slot-summary {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .summary-row  { color: hsl(215 20% 38%); }
+html.light .field-label  { color: hsl(215 20% 42%); }
+html.light .field-hint   { color: hsl(215 20% 50%); }
+html.light .format-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 35%);
+}
+html.light .format-btn:hover:not(.selected):not(.disabled) { background: rgba(0, 0, 0, 0.06); }
+html.light .format-cap   { color: hsl(215 20% 45%); }
+html.light .cap-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 28%);
+}
+html.light .cap-btn:hover { background: rgba(0, 0, 0, 0.09); }
+html.light .cap-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(220 72% 8%);
+}
+html.light .cap-icon     { color: hsl(215 20% 45%); }
+html.light .desc-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(220 72% 8%);
+}
+html.light .desc-input:focus { border-color: hsl(35 100% 44%); }
+html.light .char-count   { color: hsl(215 20% 46%); }
+html.light .enroll-toggle { color: hsl(215 20% 32%); }
+html.light .confirm-card {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .confirm-row span   { color: hsl(215 20% 45%); }
+html.light .confirm-row strong { color: hsl(220 72% 8%); }
+/* btn-secondary/ghost en el wizard (sobreescribe el global de slot-manager) */
+html.light .btn-secondary {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.11);
+  color: hsl(215 20% 32%);
+}
+html.light .btn-secondary:hover { background: rgba(0, 0, 0, 0.08); }
+html.light .btn-ghost   { color: hsl(215 20% 40%); }
+html.light .btn-ghost:hover { color: hsl(215 20% 12%); }
+
+/* ── CreateTournamentFlow.tsx (torneos/crear cards) ───── */
+html.light .form-surface,
+html.light .success-panel {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .surface-heading { color: hsl(220 72% 8%); }
+html.light .eyebrow         { color: hsl(35 100% 38%); }
+/* .field span es el label — diferente de .field-label del wizard */
+html.light .field > span    { color: hsl(215 20% 42%); }
+html.light .field input, html.light .field select, html.light .field textarea {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(220 72% 8%);
+}
+html.light .field input:focus,
+html.light .field select:focus,
+html.light .field textarea:focus {
+  border-color: hsl(35 100% 44%);
+  background: white;
+}
+html.light .field select option { background: white; color: hsl(220 72% 8%); }
+html.light .format-chip {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 35%);
+}
+html.light .format-chip--active {
+  background: rgba(246, 164, 0, 0.08);
+  border-color: rgba(246, 164, 0, 0.28);
+  color: hsl(35 100% 38%);
+}
+html.light .metric {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .metric strong { color: hsl(220 72% 8%); }
+html.light .metric span   { color: hsl(215 20% 45%); }
+html.light .inline-state  { color: hsl(215 20% 45%); }
+html.light .slot-option {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: hsl(215 20% 28%);
+}
+html.light .slot-option:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.06);
+}
+html.light .slot-option--selected {
+  border-color: rgba(246, 164, 0, 0.45);
+  background: rgba(246, 164, 0, 0.07);
+}
+html.light .slot-time   { color: hsl(220 72% 8%); }
+html.light .slot-court  { color: hsl(215 20% 44%); }
+html.light .slot-format { color: hsl(216 85% 42%); }
+html.light .empty-slot  { color: hsl(215 20% 50%); border-color: rgba(0,0,0,0.08); }
+html.light .selected-slot {
+  background: rgba(246, 164, 0, 0.06);
+  border-color: rgba(246, 164, 0, 0.22);
+  color: hsl(215 20% 28%);
+}
+html.light .round-title  { color: hsl(220 72% 8%); }
+html.light .progress-wrap { background: rgba(0,0,0,0.07); }
+html.light .organizer-pill,
+html.light .count-pill,
+html.light .club-chip {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.1);
+  color: hsl(215 20% 35%);
+}
+html.light .submit-error {
+  background: hsl(0 80% 97%);
+  border-color: rgba(239,68,68,0.25);
+  color: hsl(0 72% 38%);
+}
+
+/* ── PrivacySettingsForm.tsx (ajustes privacidad cards) ── */
+html.light .privacy-form {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .toggle-section {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .toggle-section--disabled { opacity: 0.65; }
+html.light .section-heading  { color: hsl(220 72% 8%); }
+html.light .section-label-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html.light .toggle-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+  color: hsl(220 72% 8%);
+}
+html.light .toggle-row:hover { background: rgba(0, 0, 0, 0.02); }
+html.light .toggle-label    { color: hsl(220 72% 8%); }
+html.light .toggle-tooltip  { color: hsl(215 20% 45%); }
+html.light .disabled-badge {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 50%);
+}
+
+/* ── ChangePasswordForm.tsx (ajustes seguridad card) ──── */
+html.light .password-form {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .field-control {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: hsl(210 20% 97%);
+  color: hsl(220 72% 8%);
+}
+html.light .field-control:focus-within {
+  border-color: hsl(35 100% 44%);
+  background: white;
+}
+html.light .field-control input {
+  color: hsl(220 72% 8%);
+  background: transparent;
+}
+html.light .password-grid .field-label { color: hsl(215 20% 42%); }
+html.light .strength { color: hsl(215 20% 50%); }
+html.light .security-actions { border-top-color: rgba(0,0,0,0.07); }
+
+/* =====================================================
+   Ronda adicional — tarjetas y nav oscuros que
+   persisten en tema claro (detectados en producción).
+   ===================================================== */
+
+/* ── /ajustes — barra nav vertical izquierda ─────────── */
+html.light .settings-nav {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .settings-nav-item {
+  color: hsl(215 20% 36%);
+  border-color: transparent;
+}
+html.light .settings-nav-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 12%);
+}
+html.light .settings-nav-item--active {
+  background: rgba(246, 164, 0, 0.08);
+  border-color: rgba(246, 164, 0, 0.2);
+  color: hsl(35 100% 38%);
+}
+html.light .settings-nav-item--disabled { color: hsl(215 20% 55%); }
+html.light .coming-soon {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 52%);
+}
+
+/* ── /partidos/crear — wizard container ──────────────── */
+html.light .wizard-container {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+/* CreateMatchFlow.tsx CSS-in-JSX */
+html.light .step-item       { color: hsl(215 20% 42%); }
+html.light .step-num {
+  border-color: currentColor;
+  background: transparent;
+}
+html.light .btn-back {
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: hsl(215 20% 40%);
+}
+html.light .btn-back:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: hsl(215 20% 12%);
+}
+
+/* ── /partidos/[id] — equipo cards ───────────────────── */
+html.light .team-card {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .team-name   { color: hsl(220 72% 8%); }
+html.light .team-count  { color: hsl(215 20% 46%); }
+html.light .empty-avatar {
+  border-color: rgba(0, 0, 0, 0.18);
+  color: hsl(215 20% 48%);
+}
+html.light .empty-label  { color: hsl(215 20% 48%); }
+html.light .cta-disabled { color: hsl(215 20% 48%); }
+html.light .link-back {
+  color: hsl(215 20% 38%);
+}
+html.light .link-back:hover { color: hsl(215 20% 12%); }
+
+/* Status banners en tema claro */
+html.light .banner--full {
+  background: hsl(215 20% 94%);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 20% 36%);
+}
+html.light .banner--inprogress {
+  background: hsl(216 85% 96%);
+  border-color: hsl(216 85% 75%);
+  color: hsl(216 85% 32%);
+}
+html.light .banner--completed {
+  background: hsl(215 15% 94%);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: hsl(215 15% 36%);
+}
+
+/* ── MatchInfoCard.astro ──────────────────────────────── */
+html.light .info-card {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .match-title    { color: hsl(220 72% 8%); }
+html.light .stat-label     { color: hsl(215 20% 46%); }
+html.light .stat-value     { color: hsl(220 72% 10%); }
+html.light .match-desc     { color: hsl(215 20% 42%); }
+html.light .organizer-avatar {
+  background: hsl(210 20% 93%);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .organizer-name { color: hsl(220 72% 8%); }
+html.light .organizer-pos  { color: hsl(215 20% 46%); }
+
+/* ── ClubLocationCard.astro ───────────────────────────── */
+html.light .location-card {
+  background: var(--color-card);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+html.light .club-avatar {
+  background: hsl(210 20% 93%);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+html.light .club-avatar-initial { color: hsl(215 20% 50%); }
+html.light .club-name    { color: hsl(220 72% 8%); }
+html.light .detail-label { color: hsl(215 20% 46%); }
+html.light .detail-value { color: hsl(220 72% 10%); }
+html.light .map-btn {
+  background: hsl(216 85% 96%);
+  border-color: hsl(216 85% 75%);
+  color: hsl(216 85% 32%);
+}
+html.light .map-btn:hover {
+  background: hsl(216 85% 92%);
+  border-color: hsl(216 85% 65%);
+  color: hsl(216 85% 28%);
+}
